@@ -78,11 +78,17 @@ export default function App() {
   // Use the above styles.
   const classes = useStyles();
 
+  const reader = new FileReader();
+  const initialHeader = JSON.stringify({alg: "RS256"});
+  const initialPayload = JSON.stringify({body: "here"});
+  const initialPrivateKey =
+    "-----BEGIN RSA PRIVATE KEY-----\n\n-----END RSA PRIVATE KEY-----";
+
   // State variables and setters.
   const [jot, setJot] = useState("");
-  const [header, setHeader] = useState("");
-  const [payload, setPayload] = useState("");
-  const [signature, setSignature] = useState("");
+  const [header, setHeader] = useState(initialHeader);
+  const [payload, setPayload] = useState(initialPayload);
+  const [privateKey, setPrivateKey] = useState(initialPrivateKey);
   const [decodedJot, setDecodedJot] = useState("");
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [jotError, setJotError] = React.useState(null);
@@ -100,19 +106,29 @@ export default function App() {
     try {
       encode();
     } catch (e) {
-      // Gets the reason for failure.
-      let msg = e.message.split(". ")[1];
+      let msg;
+      if (e.message) {
+        // Gets the reason for failure.
+        msg = e.message;
+      } else {
+        msg = e;
+      }
       console.error(msg);
       setJotError(msg);
       setAnchorEl(event.currentTarget);
     }
   };
 
-  const encode = (header, payload, signature) => {
+  const encode = () => {
     const base64Header = base64url.encode(header);
     const base64Payload = base64url.encode(payload);
 
-  }
+    const RSA = rs.KEYUTIL.getKey(privateKey);
+    const jwt = rs.jws.JWS.sign("RS256", header, payload, RSA);
+    // const sig = rs.jws.JWS.sign("RS256", {alg: "Rs256"}, payload, privateKey);
+    console.log(jwt);
+    setJot(jwt);
+  };
 
   const handleHeaderChange = (event) => {
     event.preventDefault();
@@ -124,9 +140,9 @@ export default function App() {
     setPayload(event.target.value);
   };
 
-  const handleSignatureChange = (event) => {
+  const handlePrivateKeyChange = (event) => {
     event.preventDefault();
-    setSignature(event.target.value);
+    setPrivateKey(event.target.value);
   };
 
   const handleKeyChange = (event) => {
@@ -310,19 +326,14 @@ export default function App() {
                   margin="none"
                   required
                   fullWidth
-                  id="jwtSignature"
-                  label="JWT-Signature"
-                  name="JWT-Signature"
-                  value={signature}
+                  id="privateKey"
+                  label="Private-Key"
+                  name="Private-Key"
+                  value={privateKey}
                   autoFocus
                   rowsMax={4}
                   multiline
-                  onChange={handleSignatureChange}
-                />
-                <JSONPretty
-                  data={signature}
-                  theme={JSONPrettyAcai}
-                  style={{ paddingBottom: "1rem" }}
+                  onChange={handlePrivateKeyChange}
                 />
               </Grid>
 
@@ -338,130 +349,22 @@ export default function App() {
                 </Button>
               </Grid>
               <Grid item xs={12} style={{ flex: "10 0 auto" }}>
-                <Typography>Header</Typography>
-                <Box
-                  border={1}
-                  borderRadius={5}
-                  borderColor="#576877"
-                  marginTop="0rem"
-                  marginBottom="1rem"
-                  padding="1rem"
-                >
-                  {decodedJot ? (
-                    <JSONPretty
-                      id="pretty-header"
-                      data={decodedJot.header}
-                      theme={JSONPrettyMon}
-                      style={{
-                        margin: 0,
-                        padding: 0,
-                        fontSize: "1rem",
-                      }}
-                      mainStyle="padding: 0, margin: 0"
-                      valueStyle="padding: 0, margin: 0"
-                    />
-                  ) : (
-                    ""
-                  )}
-                </Box>
+                <Typography>JWT</Typography>
+                <TextField
+                  variant="outlined"
+                  margin="none"
+                  required
+                  fullWidth
+                  id="jwt"
+                  label="JWT"
+                  name="JWT"
+                  value={jot}
+                  autoFocus
+                  rowsMax={10}
+                  multiline
+                />
               </Grid>
-              <Grid item xs={12} style={{ flex: "10 0 auto" }}>
-                <Typography>Payload</Typography>
-                <Box
-                  border={1}
-                  borderRadius={5}
-                  borderColor="#576877"
-                  marginTop="0rem"
-                  marginBottom="1rem"
-                  padding="1rem"
-                >
-                  {decodedJot ? (
-                    <JSONPretty
-                      id="pretty-payload"
-                      data={decodedJot.payload}
-                      theme={JSONPrettyMon}
-                      style={{
-                        margin: 0,
-                        padding: 0,
-                        fontSize: "1rem",
-                      }}
-                      mainStyle="padding: 0, margin: 0"
-                      valueStyle="padding: 0, margin: 0"
-                    />
-                  ) : (
-                    ""
-                  )}
-                </Box>
-              </Grid>
-              <Grid item xs={12} style={{ flex: "10 0 auto" }}>
-                <Typography>Signature</Typography>
-                <Box
-                  border={1}
-                  borderRadius={5}
-                  borderColor="#576877"
-                  height="100%"
-                  marginTop="0rem"
-                  marginBottom="1rem"
-                  padding="1rem"
-                >
-                  {decodedJot ? (
-                    <Typography>{decodedJot.signature}</Typography>
-                  ) : (
-                    <Typography></Typography>
-                  )}
-                </Box>
-              </Grid>
-              {decodedJot && rs256 ? (
-                <>
-                  <Grid item xs={12} style={{ flex: "10 0 auto" }}>
-                    <Typography>Public Key</Typography>
-                    <TextField
-                      variant="outlined"
-                      margin="none"
-                      color={verifiedSignature ? "primary" : "secondary"}
-                      required
-                      fullWidth
-                      id="key"
-                      label="KEY"
-                      name="key"
-                      value={key}
-                      autoFocus
-                      rowsMax={4}
-                      multiline
-                      onChange={handleKeyChange}
-                    />
-                  </Grid>
 
-                  <Grid item xs={12} style={{ flex: "1 0 auto" }}>
-                    <Button
-                      type="button"
-                      onClick={handleValidateJWT}
-                      fullWidth
-                      variant="contained"
-                      color="primary"
-                      className={classes.submit}
-                    >
-                      Verify Signature
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12} style={{ flex: "1 0 auto" }}>
-                    <Box minHeight="100px">
-                      {verifiedSignature ? (
-                        <Typography color="primary">
-                          Signature Verified{" "}
-                          <CheckIcon style={{ paddingTop: ".25rem" }} />
-                        </Typography>
-                      ) : (
-                        <Typography color="secondary">
-                          Signature not verified
-                        </Typography>
-                      )}
-                    </Box>
-                  </Grid>
-                </>
-              ) : (
-                <></>
-              )}
             </Grid>
           </form>
         </Grid>
